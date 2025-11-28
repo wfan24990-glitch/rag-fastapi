@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+transformers
+torch
+sentence-transformers
+faiss-cpu
+numpy
+pydantic
+httpx
+redis
+aiohttp
