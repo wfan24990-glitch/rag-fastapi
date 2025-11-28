@@ -11,8 +11,8 @@
   - **Reranking**: 集成 `BAAI/bge-reranker-base` 对检索结果进行语义重排序，显著提升相关性。
 - **智能问答**:
   - 自动构建包含上下文引用的 Prompt。
-  - 支持本地 LLM 接入。
-  - **自动降级策略**: 当本地 LLM 不可用或出错时，自动切换至 OpenAI API 作为备用。
+  - **主模型支持**: 默认配置接入 **豆包大模型** (Doubao)，也支持本地 LLM 或其他兼容 OpenAI 接口的模型。
+  - **自动降级策略**: 当主模型不可用或出错时，自动切换至 OpenAI API 作为备用。
 - **异步处理**: 文本入库 (`/ingest`) 采用后台任务处理，不阻塞主线程。
 
 ## 🏗 系统架构
@@ -45,11 +45,11 @@ pip install -r requirements.txt
 在项目根目录创建 `.env` 文件（参考以下配置）：
 
 ```ini
-# LLM 配置 (本地/主模型)
-LLM_API_KEY=your_local_llm_key
-LLM_PROVIDER=local
-LLM_BASE_URL=http://localhost:8000/v1
-LLM_MODEL=your-local-model-name
+# LLM 配置 (主模型 - 豆包示例)
+LLM_API_KEY=your_doubao_api_key
+LLM_PROVIDER=doubao
+LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+LLM_MODEL=doubao-seed-1-6-251015
 
 # OpenAI 配置 (备用模型)
 OPENAI_API_KEY=sk-xxxxxx
