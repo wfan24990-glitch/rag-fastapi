@@ -4,9 +4,12 @@ from fastapi import FastAPI
 from app.api import router as api_router
 from app.embeddings import load_model
 from app.reranker import load_reranker
+from app.vectorstore import load_index
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("Loading FAISS index...")
+    load_index()
     print("Loading embedding model...")
     load_model()
     print("Loading reranker model...")

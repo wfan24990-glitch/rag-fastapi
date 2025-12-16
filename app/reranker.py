@@ -1,17 +1,41 @@
+import os
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from app.config import RERANKER_MODEL
 
 _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 _tokenizer = None
 _model = None
 
+def _resolve_model_path(mpath: str) -> str:
+    """
+    If mpath points to a HF hub repo cache with snapshots, choose the snapshot folder.
+    Otherwise return the path or model id as-is.
+    """
+    if not mpath:
+        return "BAAI/bge-reranker-base"
+    if os.path.exists(mpath):
+        snap_dir = os.path.join(mpath, "snapshots")
+        if os.path.isdir(snap_dir):
+            entries = sorted(
+                [
+                    os.path.join(snap_dir, d)
+                    for d in os.listdir(snap_dir)
+                    if os.path.isdir(os.path.join(snap_dir, d))
+                ]
+            )
+            if entries:
+                return entries[0]
+        return mpath
+    return mpath
+
 def load_reranker():
     global _tokenizer, _model
     if _model is None or _tokenizer is None:
-        _tokenizer = AutoTokenizer.from_pretrained(RERANKER_MODEL)
-        _model = AutoModelForSequenceClassification.from_pretrained(RERANKER_MODEL)
+        name = _resolve_model_path(RERANKER_MODEL)
+        _tokenizer = AutoTokenizer.from_pretrained(name)
+        _model = AutoModelForSequenceClassification.from_pretrained(name)
         _model.to(_device)
         _model.eval()
     return _tokenizer, _model
@@ -33,10 +57,15 @@ def _score_batch(tokenizer, model, queries: List[str], docs: List[str]) -> List[
             scores = probs[:, -1].cpu().tolist()
     return scores
 
-def rerank(query: str, candidates: List[str], batch_size: int = 8) -> List[Tuple[str, float]]:
+def rerank(query: str, candidates: List[str], batch_size: int = 8) -> List[Dict]:
+    """
+    Rerank candidates based on query.
+    Returns a list of dicts: [{'text': str, 'score': float, 'index': int}, ...]
+    sorted by score descending.
+    """
     tokenizer, model = load_reranker()
-    pairs_scores = []
-    # prepare pair lists
+    results = []
+    
     for i in range(0, len(candidates), batch_size):
         batch_docs = candidates[i:i+batch_size]
         queries = [query] * len(batch_docs)
@@ -45,7 +74,14 @@ def rerank(query: str, candidates: List[str], batch_size: int = 8) -> List[Tuple
         except Exception:
             # fallback: return zeros for this batch if model fails
             scores = [0.0] * len(batch_docs)
-        pairs_scores.extend(list(zip(batch_docs, scores)))
+        
+        for j, score in enumerate(scores):
+            results.append({
+                "text": batch_docs[j],
+                "score": score,
+                "index": i + j
+            })
+
     # sort by score desc
-    pairs_scores_sorted = sorted(pairs_scores, key=lambda x: x[1], reverse=True)
-    return pairs_scores_sorted
+    results_sorted = sorted(results, key=lambda x: x["score"], reverse=True)
+    return results_sorted

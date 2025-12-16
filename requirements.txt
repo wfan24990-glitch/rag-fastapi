@@ -9,3 +9,7 @@ pydantic
 httpx
 redis
 aiohttp
+beautifulsoup4
+lxml
+tenacity
+chardet

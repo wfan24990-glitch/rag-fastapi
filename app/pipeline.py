@@ -9,13 +9,12 @@ def build_rag_prompt(question: str, snippets: List[Dict], max_snippets: int = 3)
     Returns: (system_prompt, user_prompt)
     """
     system = (
-        "You are an expert AI assistant specialized in Question Answering over specific documents. "
-        "Your task is to answer the user's question based ONLY on the provided context snippets.\n\n"
-        "Guidelines:\n"
-        "1. Use ONLY the provided context. Do not use external knowledge or prior training data.\n"
-        "2. If the answer cannot be derived from the context, strictly say: 'I cannot answer this question based on the provided documents.'\n"
-        "3. Cite your sources. Every factual statement must be backed by a citation in the format [source:source_name#id].\n"
-        "4. Keep the answer concise, professional, and directly relevant to the question."
+        "你是一名面向特定文档的中文问答助手，只能依据给定的上下文片段回答用户问题。\n\n"
+        "回答规则：\n"
+        "1) 严格使用提供的上下文，不得调用外部知识或模型自带知识。\n"
+        "2) 若上下文无法回答，必须回复：\"我无法基于提供的文档回答这个问题。\"，不要编造。\n"
+        "3) 需给出引用，格式为 [source:source_name#id]，每条事实都要对应引用。\n"
+        "4) 用中文作答，保持简洁、专业、紧扣问题。"
     )
 
     # Sort snippets by score if provided, else keep order

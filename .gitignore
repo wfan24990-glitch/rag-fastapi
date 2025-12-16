@@ -209,3 +209,18 @@ __pycache__/
 *.pyc
 *.bak
 data/
+
+# Node / Frontend (npm)
+node_modules/
+**/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# macOS
+.DS_Store

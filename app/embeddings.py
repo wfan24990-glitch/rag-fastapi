@@ -46,13 +46,17 @@ def mean_pooling(model_output, attention_mask):
     summed_mask = torch.clamp(input_mask_expanded.sum(dim=1), min=1e-9)
     return (summed / summed_mask)
 
-def get_embeddings(texts: List[str], batch_size: int = 8) -> np.ndarray:
+def get_embeddings(texts: List[str], batch_size: int = 8, progress: bool = False) -> np.ndarray:
     tok, model = load_model()
     device = _device
     embeddings = []
+    total = len(texts)
+    total_batches = (total + batch_size - 1) // batch_size if batch_size > 0 else 1
     with torch.no_grad():
-        for i in range(0, len(texts), batch_size):
+        for i in range(0, total, batch_size):
             batch = texts[i:i+batch_size]
+            if progress:
+                print(f"[EMB] processing batch {i//batch_size + 1}/{total_batches}, size={len(batch)}")
             enc = tok(batch, padding=True, truncation=True, return_tensors="pt", max_length=512).to(device)
             out = model(**enc)
             pooled = mean_pooling(out, enc["attention_mask"])  # tensor (bs, dim)
