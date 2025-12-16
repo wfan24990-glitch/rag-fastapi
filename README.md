@@ -1,171 +1,138 @@
-# RAG FastAPI Service
+# RAG FastAPI System (Full Stack)
 
-这是一个基于 FastAPI 构建的高性能 RAG (Retrieval-Augmented Generation) 服务。它提供了一套完整的从文本入库到智能问答的解决方案，集成了先进的文本嵌入、向量检索、重排序 (Reranking) 以及大语言模型 (LLM) 生成能力。
+这是一个功能完备的 RAG (Retrieval-Augmented Generation) 系统，包含高性能的 FastAPI 后端、现代化的 Vue 3 前端以及智能增量爬虫模块。
+
+该项目不仅实现了标准的 RAG 流程（分块、嵌入、检索、重排序、生成），还提供了一个可视化的管理界面，用于监控爬虫状态、调试检索链路以及管理知识库。
 
 ## ✨ 核心特性
 
-- **高性能架构**: 基于 FastAPI 异步框架，支持高并发请求。
-- **先进的检索链路**:
-  - **Embedding**: 默认集成 `BAAI/bge-small-zh-v1.5`，支持中文语义向量化。
-  - **Vector Store**: 使用 FAISS 进行高效的向量索引和检索。
-  - **Reranking**: 集成 `BAAI/bge-reranker-base` 对检索结果进行语义重排序，显著提升相关性。
-- **智能问答**:
-  - 自动构建包含上下文引用的 Prompt。
-  - **主模型支持**: 默认配置接入 **豆包大模型** (Doubao)，也支持本地 LLM 或其他兼容 OpenAI 接口的模型。
-  - **自动降级策略**: 当主模型不可用或出错时，自动切换至 OpenAI API 作为备用。
-- **异步处理**: 文本入库 (`/ingest`) 采用后台任务处理，不阻塞主线程。
+### 🧠 核心 RAG 引擎
+- **高性能架构**: 基于 FastAPI 异步框架。
+- **先进检索链路**:
+  - **Embedding**: 集成 `BAAI/bge-small-zh-v1.5`，支持高质量中文语义向量化。
+  - **Vector Store**: 使用 FAISS 进行毫秒级向量检索。
+  - **Reranking**: 集成 `BAAI/bge-reranker-base` 对检索结果进行语义重排序，大幅提升上下文相关性。
+- **智能问答**: 自动构建 Prompt，支持豆包 (Doubao) 模型，并具备 OpenAI 自动降级容错机制。
 
-## 🏗 系统架构
+### 🕷️ 智能增量爬虫
+- **目标源**: 专为南京大学智能科学与技术学院 (`is.nju.edu.cn`) 定制。
+- **增量更新**: 智能识别上次同步时间，仅抓取新发布的文章，节省资源。
+- **健壮性设计**:
+  - 内置 `tenacity` 指数退避重试机制。
+  - 兼容老旧 SSL 协议（解决校园网握手失败问题）。
+  - URL 与 内容双重去重 (Hash-based Deduplication)。
+- **Dry Run 模式**: 支持“空跑”测试，仅模拟抓取流程而不写入数据库，便于验证。
 
-数据流向如下：
+### 🖥️ 可视化前端
+- **技术栈**: Vue 3 + Vite + Element Plus。
+- **爬虫管理**: 可视化触发全量/增量爬取，实时查看运行状态、新增条数及错误日志。
+- **调试控制台**:
+  - **全链路透视**: 展示 Embedding、Search、Rerank、Generation 各阶段耗时。
+  - **检索对比**: 直观对比“初排候选”与“重排后上下文”，辅助调优。
 
-1.  **入库 (Ingestion)**:
-    `文本输入` -> `分块 (Chunking)` -> `Embedding 模型` -> `向量 (Vectors)` -> `FAISS 索引` & `元数据存储`
+## 🛠️ 技术栈
 
-2.  **问答 (Query)**:
-    `用户问题` -> `Embedding 模型` -> `向量检索 (Top-K)` -> `Reranker 重排序` -> `构建 Prompt (含上下文)` -> `LLM 生成` -> `最终答案`
+- **Backend**: Python 3.10, FastAPI, Uvicorn, Aiohttp, BeautifulSoup4
+- **AI/ML**: PyTorch, Transformers, Sentence-Transformers, FAISS
+- **Frontend**: Vue 3, Vite, Element Plus, Axios
+- **Infrastructure**: Conda, Docker (Optional)
 
 ## 🚀 快速开始
 
-### 1. 环境要求
+### 1. 环境准备
 
-- Python 3.8+
-- (可选) NVIDIA GPU + CUDA (用于加速 Embedding 和 Reranking 模型推理)
+确保已安装：
+- Python 3.10+ (推荐使用 Conda)
+- Node.js 18+
 
-### 2. 安装依赖
+### 2. 后端设置
 
 ```bash
+# 1. 克隆项目
 git clone https://github.com/wfan24990-glitch/rag-fastapi.git
 cd rag-fastapi
+
+# 2. 创建并激活 Conda 环境
+conda create -n rag python=3.10
+conda activate rag
+
+# 3. 安装依赖
 pip install -r requirements.txt
+
+# 4. 配置环境变量
+# 复制 .env.example 为 .env 并填入 API Key
+cp .env.example .env
 ```
 
-### 3. 配置环境
-
-在项目根目录创建 `.env` 文件（参考以下配置）：
-
+**`.env` 配置示例**:
 ```ini
-# LLM 配置 (主模型 - 豆包示例)
 LLM_API_KEY=your_doubao_api_key
 LLM_PROVIDER=doubao
-LLM_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
-LLM_MODEL=doubao-seed-1-6-251015
+OPENAI_API_KEY=your_openai_key (可选，用于降级)
+```
 
-# OpenAI 配置 (备用模型)
-OPENAI_API_KEY=sk-xxxxxx
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-3.5-turbo
+### 3. 前端设置
 
-# 模型路径配置 (可选，默认自动下载)
-# EMBEDDING_MODEL_PATH=BAAI/bge-small-zh-v1.5
-# RERANKER_MODEL=BAAI/bge-reranker-base
+```bash
+cd frontend
 
-# 向量库路径
-FAISS_INDEX_PATH=data/faiss_index.bin
-
-# 检索参数
-TOP_K=20
-LLM_CONTEXT_DOCS=5
+# 安装依赖
+npm install
 ```
 
 ### 4. 启动服务
 
+**启动后端**:
 ```bash
-python app/main.py
-# 或者使用 uvicorn
-uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+# 在项目根目录
+conda activate rag
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-服务启动后，API 文档地址: `http://localhost:8001/docs`
-
-## 📖 API 使用指南
-
-### 1. 文本入库 (`/ingest`)
-
-将文本数据添加到知识库中。
-
-**请求:**
+**启动前端**:
 ```bash
-curl -X POST "http://localhost:8001/ingest" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "text": "FastAPI 是一个用于构建 API 的现代、快速（高性能）的 web 框架，使用 Python 3.6+ 并基于标准的 Python 类型提示。",
-           "source": "fastapi_intro"
-         }'
+# 在 frontend 目录
+npm run dev
 ```
 
-**响应:**
-```json
-{
-  "status": "processing",
-  "ingested_chunks_count": 1,
-  "message": "Ingestion started in background"
-}
-```
+访问前端页面：`http://localhost:5173`
 
-### 2. 智能问答 (`/query`)
+## 📖 使用指南
 
-基于知识库回答问题。
+### 1. 爬虫管理 (Crawler Manager)
+在前端顶部面板：
+- 点击 **"Dry Run"**：测试爬虫逻辑，查看日志，不写入数据。
+- 点击 **"Incremental Update"**：开始增量抓取，将新文章自动向量化并存入 FAISS。
+- 点击 **"Full Crawl"**：重新抓取前 50 页数据（用于初始化或修复数据）。
 
-**请求:**
-```bash
-curl -X POST "http://localhost:8001/query" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "query": "FastAPI 是什么？",
-           "top_k": 10
-         }'
-```
-
-**响应:**
-```json
-{
-  "answer": "FastAPI 是一个用于构建 API 的现代、快速（高性能）的 web 框架...",
-  "sources": [
-    {
-      "text": "FastAPI 是一个用于构建 API 的现代...",
-      "score": 0.98,
-      "source": "fastapi_intro",
-      "id": 0
-    }
-  ]
-}
-```
-
-### 3. 健康检查 (`/status`)
-
-```bash
-curl http://localhost:8001/status
-```
+### 2. RAG 调试 (Debug Console)
+在前端下方搜索框：
+- 输入问题（例如：“2025年招聘公告”）。
+- 查看 **Timings** 面板，分析各阶段耗时。
+- 切换 **Retrieval Process** 标签页，查看 Rerank 前后的文档差异。
 
 ## 📂 项目结构
 
 ```
 rag-fastapi/
 ├── app/
-│   ├── api.py           # API 路由定义
-│   ├── config.py        # 配置加载
-│   ├── embeddings.py    # Embedding 模型封装
-│   ├── llm.py           # LLM 调用逻辑 (含 Fallback)
-│   ├── llm_client.py    # 通用 LLM 客户端
-│   ├── main.py          # 程序入口
-│   ├── pipeline.py      # RAG Prompt 构建
-│   ├── reranker.py      # Reranker 模型封装
-│   ├── vectorstore.py   # FAISS 向量库管理
-│   └── utils/
-│       └── chunker.py   # 文本分块工具
-├── data/                # 存放向量索引文件 (faiss_index.bin)
-├── requirements.txt     # 项目依赖
-└── README.md            # 项目文档
+│   ├── api.py              # API 路由 (含 /query, /ingest, /crawler)
+│   ├── crawler/            # 爬虫模块
+│   │   ├── spider.py       # 爬虫核心逻辑 (Aiohttp + Tenacity)
+│   │   ├── parser.py       # 网页解析器 (BeautifulSoup)
+│   │   └── state.py        # 状态管理 (JSON)
+│   ├── embeddings.py       # Embedding 模型封装
+│   ├── vectorstore.py      # FAISS 向量库封装
+│   ├── reranker.py         # Reranker 模型封装
+│   └── llm.py              # LLM 调用逻辑
+├── frontend/               # Vue 3 前端项目
+│   ├── src/components/     # 组件 (CrawlerManager, RAGDebug)
+│   └── ...
+├── data/                   # 数据存储 (FAISS索引, 爬虫状态)
+├── requirements.txt        # Python 依赖
+└── README.md               # 项目文档
 ```
 
-## 🛠 技术栈
-
-- **Web Framework**: [FastAPI](https://fastapi.tiangolo.com/)
-- **Vector Search**: [FAISS](https://github.com/facebookresearch/faiss)
-- **ML Models**: [HuggingFace Transformers](https://huggingface.co/docs/transformers/index) (PyTorch)
-- **LLM Integration**: Custom Client + OpenAI SDK
-
-## 📝 License
+## 📄 License
 
 MIT License
